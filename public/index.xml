@@ -8,12 +8,12 @@
     <language>en-us</language>
     <lastBuildDate>Sun, 20 Sep 2020 00:00:00 +0000</lastBuildDate><atom:link href="/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Post Title</title>
-      <link>/2020/09/20/post-title/</link>
+      <title>How do Canadians really feel about the democratic system</title>
+      <link>/2020/09/20/how-do-canadians-really-feel-about-the-democratic-system/</link>
       <pubDate>Sun, 20 Sep 2020 00:00:00 +0000</pubDate>
       
-      <guid>/2020/09/20/post-title/</guid>
-      <description></description>
+      <guid>/2020/09/20/how-do-canadians-really-feel-about-the-democratic-system/</guid>
+      <description>this is a test</description>
     </item>
     
     <item>
@@ -32,7 +32,7 @@
       <pubDate>Thu, 05 May 2016 21:48:51 -0700</pubDate>
       
       <guid>/about/</guid>
-      <description>This is a &amp;ldquo;hello world&amp;rdquo; example website for the blogdown package. The theme was forked from @jrutheiser/hugo-lithium-theme and modified by Yihui Xie.</description>
+      <description>This website is dedicated to my forays into the world of survey design</description>
     </item>
     
     <item>
