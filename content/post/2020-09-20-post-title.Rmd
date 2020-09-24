@@ -1,5 +1,5 @@
 ---
-title: New Post
+title: How do Canadians really feel about the democratic system
 author: ~
 date: '2020-09-20'
 categories: []
