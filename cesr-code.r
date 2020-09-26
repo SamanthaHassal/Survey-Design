@@ -1,5 +1,5 @@
 # install cesR package
-devtools::install_github("hodgettsp/cesR")
+#devtools::install_github("hodgettsp/cesR")
 
 # load cesR package and labelled package
 library(cesR)
@@ -39,11 +39,11 @@ unknown <- edu_demsat %>%
 filter(cps19_education=="Don't know/ Prefer not to answer")
 
 #install graphing
-install.packages(
-   "ggplot2",
-   repos = c("http://rstudio.org/_packages",
-   "http://cran.rstudio.com")
-)
+#install.packages(
+#   "ggplot2",
+#   repos = c("http://rstudio.org/_packages",
+#   "http://cran.rstudio.com")
+#)
 
 #plot data
 library(ggplot2)
