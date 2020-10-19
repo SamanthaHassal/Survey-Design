@@ -15,7 +15,7 @@ data = read.csv("gss.csv")
 ```
 
 ## Code
-You can find the code [here](https://github.com/SamanthaHassal/Survey-Design/tree/master/content/GSS%20project/plotGen_goodcopy.Rmd)
+You can find the code [here](https://github.com/SamanthaHassal/Survey-Design/tree/master/content/GSS%20project)
 
 ## Abstract
 Statistics Canada puts out a survey every year called the General Social Survey. Each year, the survey focuses on a different topic. For the year 2017, the survey looked at marriage and family life. We use these results to look at whether a connection exists between marital status and a person's outlook on life. We modeled the results using a traditional (frequentist) linear regression. The results show that married people have a slightly higher outlook on life than single people do. Why that is remains a topic for future investigation. 
