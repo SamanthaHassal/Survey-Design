@@ -1,0 +1,189 @@
+---
+title: "Marriage vs Outlook on Life"
+author: "Samantha Hassal, Ting Fu Hsu"
+date: "October 19, 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(skimr)
+library(tidyverse)
+library(visdat)
+data = read.csv("gss.csv")
+```
+
+## Code
+You can find the code [here](https://github.com/SamanthaHassal/Survey-Design/tree/master/content/GSS%20project)
+
+## Abstract
+Statistics Canada puts out a survey every year called the General Social Survey. Each year, the survey focuses on a different topic. For the year 2017, the survey looked at marriage and family life. We use these results to look at whether a connection exists between marital status and a person's outlook on life. We modeled the results using a traditional (frequentist) linear regression. The results show that married people have a slightly higher outlook on life than single people do. Why that is remains a topic for future investigation. 
+
+## Introduction
+Since 1985, Statistics Canada has put out a  General Social Survey (GSS). The GSS is a series of surveys, each covering one topic in-depth. By doing this, Statistics Canada collects data on social trends so as to look at changes in the living conditions/well being of Canadians and collect data on issues concerning social policy.
+
+Each year, the survey is on a different topic. These topics include things such as how people spend their time and the social identities of Canadians. If the topic of a given survey fails to remain relevant, Statistics Canada discontinues examining it in the survey.
+ 
+We can use the results of the GSS to answer social questions, such as how marriage changes your outlook on life. We looked at variables like marital status, whether the person had children, and how they rank their outlook on life on a scale of one to ten. We want to know if people have a different outlook on life if they’re single vs if they’re married and if this changes further if they have children
+
+
+## Methods
+We analyzed marriage satisfaction using a simple, frequentist linear regression. We chose this method because frequentist methods are easier to code than Bayesian. Also, some platforms for using R don't handle Bayesian codes as well as others, rendering software that works on frequentist principles more reliable. However, because of how frequentist methods treat uncertainty, we need to use confidence intervals. Fortunately, the confint() method in R handles this automatically.
+
+```{r Data_Exploration, include = FALSE}
+skimr::skim(data)
+```
+
+## Data
+Due to the nature of the question, we looked at Predominantly qualitative independent variables. We tried to quantify by assigning 0-1 values based on whether it meets a standard (1 if yes, 0 if no). The only data set that was quantitative was how people write their outlook on life. The participants of the survey ranked the outlook on life on a scale of one to ten. We display the results in the graphs below:
+
+
+```{r pressure, echo=FALSE}
+#Plotting age vs total_children
+
+#data %>% 
+#  ggplot(aes(x = age, y = total_children)) + geom_point()
+
+#Create dummy variable for male/female, whether they have children, whethere they are married or single or have RockyRelations (divorced, widowed, or separated)
+data$Has_child <- ifelse(data$total_children > 0, 1, 0)
+data$Male <- ifelse(data$sex == 'Male', 1, 0)
+data$Female <- ifelse(data$sex == 'Female', 1, 0)
+data$Married <- ifelse(data$marital_status == "Married", 1, 0)
+data$Single <- ifelse(data$marital_status == "Single, never married", 1, 0)
+data$RockyRelations <- ifelse(data$marital_status %in% c("Divorced", "Separated", "Widowed"), 1, 0)
+data$isAdult <- ifelse(data$age > 18, 1, 0)
+
+
+
+#Model feelings of life based on Income
+#Classify a "good" wage: based on https://torontostoreys.com/cost-of-living-single-toronto/, need $50,000 per year, for Toronto. A rough estimate
+
+data$Good_inc <- ifelse(data$income_respondent %in% c("$50,000 to $74,999", "$75,000 to $99,999", "$100,000 to $ 124,999", "$125,000 and more"), 1, 0)
+data$Subpar_inc <- ifelse(data$income_respondent %in% c("Less than $25,000", "$25,000 to $49,999"), 1, 0)
+
+#Predict feelings of life based on Gender, Marital status, good income, and number of children
+
+#For Males
+mod0 <- lm(data$feelings_life ~ data$Male + data$Married + data$Good_inc, data = data)
+
+#For Females
+mod1 <- lm(data$feelings_life ~ data$Female + data$Married  + data$Good_inc, data = data)
+
+
+#Not sure how you want to explore the data, I just put some down here. I'll make the graphs look nicer once you've decided which one is the best
+
+data %>% 
+  ggplot(aes(x = Married  + Good_inc, y = feelings_life)) + 
+    geom_point() +
+    stat_smooth(method = "lm", col = "red") + ylab("Feeling") + xlab("Married, has good income")
+
+data %>% 
+  ggplot(aes(x = Single + Good_inc, y = feelings_life)) + 
+    geom_point() +
+    stat_smooth(method = "lm", col = "red") + ylab("Feeling") + xlab("Single, has good income")
+
+data %>% 
+  ggplot(aes(x = Married  + Good_inc + Has_child, y = feelings_life)) + 
+    geom_point() +
+    stat_smooth(method = "lm", col = "red") + ylab("Feeling") + xlab("Married, has good income and Children")
+
+
+#data %>% 
+  #ggplot(aes(x = Male + Good_inc, y = feelings_life)) + 
+    #geom_point() +
+    #stat_smooth(method = "lm", col = "red") + ylab("Feeling") + xlab("Male, has good income")
+
+#data %>% 
+  #ggplot(aes(x = Female + Good_inc, y = feelings_life)) + 
+    #geom_point() +
+    #stat_smooth(method = "lm", col = "red") + ylab("Feeling") + xlab("Female, has good income")
+
+
+```
+
+The first graph visualizes people’s Outlook on life vs marital status and income. The Y axis represents the outlook on life, and the X axis represents the number of categories a person falls into (if they’re married and if they have a good income). According to this chart, people have a slightly better outlook on life if they are married and have a decent income (defined as an income greater than 50000 dollars per year). 
+
+How does this compare to people who are single? If we adjust for income, the results will resemble the second graph.This graph shows that your outlook on life decreases slightly if you are single vs if you are married, even if you adjust for income.
+
+What about married couples who have children? The third graph  shows that people who were married and had children had an increased outlook on life. 
+
+## Model
+How can we make comparisons? We can start by looking at the lines of best fit for each of the above graphs. The line of best fit for the first graph is $f(x,y) = 7.74+0.60x +0.20y$, $x$ is if they’re married and $y$ is good income. The line of best fit for the second graph is $f(w,y) = 8.13-0.52w+0.23y$, where $w$ is if they’re single and $y$ is good income. Finally, the line of best fit for the third graph is $f(x,y,z) = 7.70+0.5x+0.20y+0.07z$, where $x$ is if they’re married and $y$ is good income, and $z$ is if they have children. 
+
+Since we used frequentist methods, we need to describe the confidence intervals for each of the parameters. For ease of use, we went with the 97.5% CI (the default in R). For the first model (married not accounting for children), the confidence interval was between 7.71 and 7.78 for the intercept, between 0.56 and 0.65 for the slope of $x$, and between 0.16 and 0.25 for $y$. for the second model (single), the confidence interval was between 8.09 and 8.16 for the intercept, between -0.57 and -0.46 for the slope of $w$, between 0.19  0.28 for the slope of $y$. For the third model (married accounting for children), the confidence interval for each parameter was
+between 7.66 and 7.75 for the intercept, between 0.53 and 0.63 for the slope of $x$, between 0.16 and 0.25 for the slope of $y$, and between 0.02 and 0.12 for the slope of $z$.
+
+
+```{r LOBF, echo=FALSE}
+#LOBFs for graphs of interest
+marr_mod_1 <- lm(data$feelings_life ~ data$Married  + data$Good_inc, data = data)
+marr_mod_2 <- lm(data$feelings_life ~ data$Married  + data$Good_inc + data$Has_child, data = data)
+single_mod <- lm(data$feelings_life ~ data$Single  + data$Good_inc, data = data)
+
+#coefficents for LOBF
+#marr_mod_1$coefficients
+#marr_mod_2$coefficients
+#single_mod$coefficients
+```
+
+
+```{r CI, echo=FALSE}
+#confidence intervals
+CI_01 <- confint(marr_mod_1)
+CI_02 <- confint(marr_mod_2)
+CI_sing <- confint(single_mod)
+#inspect values
+#CI_01
+#CI_02
+#CI_sing
+```
+
+## Discussion
+Many things can affect a person's outlook on life. In this work, we looked at marital status along with any of the married people had children. Each of the terms in the lines of best fit has a meaning. The y-intercept represents a baseline outlook on life, while the slopes of the independent variables represent the impact of each factor. The slope of $x$ or $w$ represents the impact of being married or single ($x$ is if the person is married, $w$ is if the person is single). The slope of  represents the impact of income, and the slope of $z$ represents impact of having kids. We see that the losses from being single nearly canceled out gains from being married, and the gain from having children was marginal compared to the gains from being married/income. Also, marital status had a larger impact overall compared to income. (As the old saying goes, "money can't buy happiness".)
+
+This analysis was very preliminary. It was mainly done to see if a connection exists between marital status and outlook on life. Many theories exist as to why married people have better outlooks on life than single people. A 2014 paper by John F. Helliwell and Shawn Grover suggests that it's because getting married alleviates the dip in outlook on life in middle age. To get a better sense of why the trends are the way they are, we need to ask a series of follow up questions. A person’s outlook on life may change depending on the age at which they had your first child, the number of children, and the age of those children.
+
+This analysis has several areas of weakness. Some parameters do not transfer to numerical data nicely, and 0-1 values may not fit nicely to a regression line. Because of how the independent variables behaved, the data points fell on columns. It would be better to use a GLM (generalized linear model), as with this kind of model, it is easier to perform regressions on qualitative data using this way. Also, some data points may be omitted. In terms of missing data, there’s not much that can be done here. 
+
+
+## Bibliography
+"6.1 - Introduction to Generalized Linear Models." Last modified 2018. https://online.stat.psu.edu/stat504/node/216/.
+
+Alexander, Rohan. GSS Cleaning Code (version 1.0). 2020.
+
+Elin Waring, Michael Quinn, Amelia McNamara, Eduardo Arino de la Rubia, Hao Zhu and
+  Shannon Ellis (2020). skimr: Compact and Flexible Summaries of Data.
+  https://docs.ropensci.org/skimr (website), https://github.com/ropensci/skimr.
+  
+Grover, Shawn, and John Helliwell. "How's Life at Home? New Evidence on Marriage and the Set Point for Happiness." _Journal of Happiness Studies_ 20, no. 2 (2014), 373-390. doi:10.3386/w20794.
+
+Hadley Wickham, Romain François, Lionel Henry and Kirill Müller (2020). dplyr: A Grammar
+  of Data Manipulation. https://dplyr.tidyverse.org, https://github.com/tidyverse/dplyr.
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+Khoo, Isabelle. "How Much Income A Single Person Needs To Live Comfortably In Toronto." Toronto Storeys. Last modified March 25, 2019. https://torontostoreys.com/cost-of-living-single-toronto/.
+
+R Core Team (2020). R: A language and environment for statistical computing. R Foundation
+  for Statistical Computing, Vienna, Austria. URL https://www.R-project.org/.
+  
+Ruus, Laine. 2017 General Social Survey (GSS): Families Cycle 31. December 16, 2003. Distributed by CHASS Data Archive. http://dc.chass.utoronto.ca/
+
+Statistics Canada. "The General Social Survey: An Overview." Last modified October 18, 2013. https://www150.statcan.gc.ca/n1/pub/89f0115x/89f0115x2013001-eng.htm.
+
+Tierney N (2017). “visdat: Visualising Whole Data Frames.” _JOSS_, *2*(16), 355. doi:
+10.21105/joss.00355 (URL: https://doi.org/10.21105/joss.00355), <URL:
+http://dx.doi.org/10.21105/joss.00355>.
+
+Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43),
+  1686, https://doi.org/10.21105/joss.01686
+
+
+
+
+
+```{r}
+
+```
+
