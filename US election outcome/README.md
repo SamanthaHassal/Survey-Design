@@ -67,7 +67,7 @@ Scripts contain R scripts that take inputs and outputs and produce outputs. Thes
 - 01_data_cleaning.R
 - 02_data_preparation.R
 
-ALL references are contained at outputs/paper/references.bib
+references included within the RMarkdown (.Rmd) file
 
 
 
