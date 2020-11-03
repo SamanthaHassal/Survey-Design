@@ -1,0 +1,421 @@
+---
+title: "Will Biden win the 2020 Election? A look at election forecasting with multilevel regression and post stratification"
+author: "Samantha Hassal, Ting Fu Hsu"
+date: "11/2/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## GitHub
+code is available here: 
+
+https://github.com/SamanthaHassal/Survey-Design/tree/master/US%20election%20outcome
+
+## Abstract
+
+We used multilevel regression with post stratification to predict the outcome of the US presidential election. Our training data was the NationScape survey data and our test data was the American Community Survey (ACS) data. We then constructed a logistic regression using the glm() function in R with our trainng data and tested it against our post stratified data at two levels. Although our model tells us Biden will win the election, this may not reflect reality due to various confounding factors. 
+
+### **Keywords:** 
+forecasting, 2020 US election, Trump, Biden, multilevel regression with post-stratification.
+
+## Introduction
+
+When Donald Trump won the 2016 presidential election, it came as a shock to a lot of people. Trump's win in 2016 was unexpected because Clinton won the popular vote by 2.1 points, and the margin of error of the federal polls was in line with past performance. However, despite the fact that the performance of state level polls was also in line with what was expected, these polls overestimated Democratic support in Michigan, Pennsylvania, North Carolina and Wisconsin.
+
+While the polls did not miss the mark entirely, they did make grave mistakes in where to look, and what metrics to look at. For example, the pollsters that year operated under the assumption that people of higher education levels voted Democrat, while those at lower education levels voted Republican, even though this did not reflect reality.
+
+Can we expect Trump to win again? The answer depends on how we analyze the data. In this paper, we describe the frames, populations, and samples of the American Community Survey data set and the NationScape voter data set. We will also provide a brief introduction and outline of the multilevel logistics regression model and why it is used in this context, along with an interpretation of the results of and how they translate to an election outcome. Lastly, we will examine strengths and weaknesses of the model and propose questions for future investigation.
+
+## Data
+
+The data used in this paper comes from two sources: the ACS (American Community Survey) dataset (Ruggles et al. 2020) and the NationScape voter survey (Tausanovitch and Vavreck 2020). Curated by Integrated Public Use Microdata Series (now known as IPUMS USA), the ACS serves a similar purpose to the 10 year census, but conducted more frequently. It contains similar data to the NationScape dataset. Unlike the NationScape dataset, it lacks information about prior voter behaviour and explicit knowledge about party leanings. The NationScape voter survey is curated by the democracy fund and UCLA. It was conducted over a series of 16 months in the lead up to the 2020 election. The nation scape voter survey personnel conducted about 500,000 interviews. The NationScape survey contains both generic data and detailed data on political behaviour, including some that traditional polls sometimes miss. This is important in our analysis because traditional polls may miss critical factors.
+
+Both surveys aim to describe the US population. The frame of the ACS survey data are the people who responded to the survey, while the frame of the NationScape voter survey are US voters. The samples from the ACS dataset we used for our analysis are the individuals who were eligible to vote in the US. The sample we used from the NationScape data were registered voters who have some intent to vote. We chose these because it makes sense that these individuals are the most likely to vote.
+
+Our analysis uses the following predictors for voting behaviour: age, education, employment, and prior voting behaviour. Particular emphasis was paid to the first three, as prior voting behaviour wasn’t represented in the ACS dataset. We used both sets of data to Test model performance and check and see if what we were seeing was a real effect or symptom of the data and/or model.
+
+## Model
+
+This work uses a MRP (multilevel regression with post-stratification) type model to forecast the election. Post stratification means the data has been stratified after it has been collected. The stratification of data is important because it ensures all groups of interest are represented in the survey. Thus, the presence of smaller groups is not drowned out by larger groups if stratification is used. Multilevel regression is a form of regression that takes into account both variation explained by the independent variables and variation due to random effects. At the first level, the equation for multilevel regression is as follows:
+$y=ax+b$
+At higher level’s, the equation of a line doesn’t change, but the equations for the coefficients are $a=\alpha+v$ and $b=\beta+w$, where v and w are normally distributed with a mean of 0. The use of a multilevel regression is important because it allows us to examine the impact of randomness in the model.
+
+As with all model methodologies, MRP has costs and benefits. The many benefits of MRP include considering multiple factors including categorical and continuous variables. Furthermore, by factoring in random effects, it provides insights that would otherwise be missed. Having said that, the downside to MRP is that we need to collect a lot of information to get a reliable result. Since it provides the best outcome for predicting an election closest to election day, timing is an issue.
+
+Since we deal with a lot of binary variables, we use something known as a logistic regression. The key difference between linear regression and logistic regression is that in a linear regression, the output can go less than zero or greater than one, while in a logistic regression, the output must be $0<x<1$. 
+
+To convert the logistic equation into y=ax+b, rearrange until we get the following:
+
+$p(X)=\frac{e^{\beta_{0}+\beta_{1} X}}{1+e^{\beta_{0}+\beta_{1} X}}$
+
+$\frac{p(X)}{1-p(X)}={e^{\beta_{0}+\beta_{1} X}}$
+
+$\ln{\frac{p(X)}{1-p(X)}}=\beta_{0}+\beta_{1} X$
+
+Many functions exist to generate logistic regressions in R (R Core Team 2020). In order of complexity, they are glm(), gle4::glmer(), and bmrs::brm(). Our code uses GLM since it can handle both discrete and continuous data. Also, GLM is built into R, so there was little risk that the code will not execute because the library was not loaded properly. 
+
+In the GLM equation, $y$ equals the logarithm of the odds ratio. If $y$ is greater than 0, that means the odds ratio is greater than 1 If $y$ is less than 0, the odds ratio is less than 1 Multilevel regressions either have a noisy slope, noisy intercept, or both. This model just uses a noisy intercept because it was easier to code. 
+
+The model looks at only data from the swing states. We do this because these states do not consistently vote Democratic or Republican. Thus, swing states determine the outcome of the election. The impact to which a swing state determines an election is dictated by the population (eg, Pennsylvania matters more than Alaska because more people live in Pennsylvania than Alaska). The states that the model considers swing states are North Carolina, Florida, Pennsylvania, Michigan, Arizona, Wisconsin, and Ohio. The model treats the outcome of the 2020 election as binary, where 1 corresponds to Trump, 0 corresponds to Biden (a similar sub-analysis which included prior voting behaviour in the 2016 election assigned a value of 1 to Trump and 0 to anyone else). Education and employment are also treated as binary. A value of 1 was assigned to levels of education higher than a high school diploma and 0 assigned to a high school diploma or less. The same practice was applied to employment, where a value of 1 means “employed” and 0 means “unemployed”. Our definition of unemployment included retired individuals and students as well as those traditionally considered unemployed. The only continuous variable we used in our analysis was age. Beside convenience, age provides some insight into education and employment (older people, to a point, are more likely to be employed and have a higher level of education than younger people).
+
+
+```{r cars, message=FALSE, echo=FALSE}
+#### Workspace setup ####
+library(haven)
+library(tidyverse)
+# Read in the raw data (You might need to change this if you use a different dataset)
+raw_data <- read_dta("ns20200625.dta")
+# Add the labels
+raw_data <- labelled::to_factor(raw_data)
+# Just keep some variables
+reduced_data <- 
+  raw_data %>% 
+  select(interest,
+         registration,
+         vote_2016,
+         vote_intention,
+         vote_2020,
+         ideo5,
+         employment,
+         foreign_born,
+         gender,
+         census_region,
+         hispanic,
+         race_ethnicity,
+         household_income,
+         education,
+         state,
+         congress_district,
+         age)
+
+
+# ### What else???? ####
+# Maybe make some age-groups?
+# Maybe check the values?
+# Is vote a binary? If not, what are you going to do?
+
+# +
+#only look at registered voters who intend to vote
+working_file <- reduced_data %>%
+filter(registration=='Registered') %>%
+filter(vote_intention!='No, I will not vote but I am eligible') %>%
+filter(vote_2020 %in% c("Donald Trump", "Joe Biden"))
+
+#working_file
+
+# +
+#build age quartiles
+age_quartile <- quantile(working_file$age)
+
+#build vector of education levels
+high_ed <- c("Associate Degree", 
+             "Completed some college, but no degree", 
+             "Masters degree", 
+             "Completed some graduate, but no degree", 
+             "Other post high school vocational training",
+            "Doctorate degree",
+            "College Degree (such as B.A., B.S.)") 
+education <- ifelse(working_file$education %in% high_ed, 1, 0)
+
+#build vector of employment
+is_employed <- c("Full-time employed", "Self-employed", "Part-time employed")
+employ <- ifelse(working_file$employment %in% is_employed, 1, 0)
+
+#build vector of prior voting behaviour
+voter_prior_behave <- ifelse(working_file$vote_2016=="Donald Trump", 1, 0)
+
+#build vector of intended vote
+intend_vote <- ifelse(working_file$vote_2020=="Donald Trump", 1, 0)
+# -
+#construct new data frame
+election_DF <- data.frame(education, working_file$age, working_file$state, employ, voter_prior_behave, intend_vote)
+#examine swing states only
+sw_states <- c("AZ", "FL", "GA", "MI", "MN", "NC", "PA", "WI")
+swing <- election_DF %>%
+filter(working_file.state %in% sw_states)
+
+#GLM model with age, employment, education
+my_model_1 <- glm(swing$intend_vote ~ swing$working_file.age+swing$education+swing$employ, data=swing, family="binomial")
+#my_model_1
+#confint(my_model_1)
+
+
+#GLM model with age, employment, education, and prior voting behaviour
+my_model_2 <- glm(swing$intend_vote ~ swing$working_file.age+swing$education+swing$employ+swing$voter_prior_behave, data=swing, family="binomial")
+#my_model_2
+#confint(my_model_2)
+
+# +
+#function to transform imput data as per model 1
+outcome <- function(age, edu, emp) {
+  Y <- (coef(my_model_1)["swing$working_file.age"]*age
+        + coef(my_model_1)["swing$education"]*edu
+        + coef(my_model_1)["swing$employ"]*emp
+       + coef(my_model_1)["(Intercept)"])
+y <- exp(Y)
+    return(y)
+}
+
+T <- outcome(swing$working_file.age, swing$education, swing$employ)
+
+
+# +
+#function to transform imput data as per model 2
+outcome_2 <- function(age, edu, emp, prior) {
+  Y <- (coef(my_model_2)["swing$working_file.age"]*age
+        + coef(my_model_2)["swing$education"]*edu
+        + coef(my_model_2)["swing$employ"]*emp
+        + coef(my_model_2)["swing$voter_prior_behave"]*prior
+       + coef(my_model_2)["(Intercept)"])
+y <- exp(Y)
+    return(y)
+}
+
+U <- outcome_2(swing$working_file.age, swing$education, swing$employ, swing$voter_prior_behave)
+```
+
+## Results
+
+We shall display the output of the first iteration of our model below:
+
+```{r pressure, echo=FALSE}
+# preliminary graphical analyses
+library(ggplot2)
+ 
+ggplot(swing, aes(x=working_file.age+education+employ, y=log(T))) + 
+    geom_point() + geom_smooth(method=lm , color="pink", fill='blue', se=TRUE) +
+  labs(title="Figure 1a: Level 1 graph of likelihood of Trump win", subtitle="Data from NationScape Survey (2020)", x="predicting factors (age, employment, education)", y='log of odds ratio')
+
+
+ggplot(swing, aes(x=working_file.age+education+employ+voter_prior_behave, y=log(U))) + 
+    geom_point() + geom_smooth(method=lm , color="blue", fill='pink', se=TRUE) +
+  labs(title="Figure 1b: Level 1 graph of likelihood of Trump win given 2016 voting behaviour", subtitle="Data from NationScape Survey (2020)", x="predicting factors (age, employment, education)", y='log of odds ratio')
+
+
+
+# +
+#empty lists
+mylist_1 <- list()
+mylist_2 <- list()
+mylist_3 <- list()
+mylist_4 <- list()
+#loop over swing states, building models for each and inputting coefficients into lists
+for (state in sw_states)
+{
+tmp <- swing %>% filter(swing$working_file.state==state)
+tmp_model <- glm(tmp$intend_vote ~ tmp$working_file.age+tmp$education+tmp$employ, data=tmp, family="binomial")
+mylist_1[state] <- coef(tmp_model)[1]
+mylist_2[state] <- coef(tmp_model)[2]
+mylist_3[state] <- coef(tmp_model)[3]
+mylist_4[state] <- coef(tmp_model)[4]
+} 
+
+#seed
+set.seed(length(swing$vote_2020))
+#normal distributions
+s1 <- rnorm(swing$intend_vote, 0, sd(unlist(mylist_1)))
+s2 <- rnorm(swing$intend_vote, 0, sd(unlist(mylist_2)))
+s3 <- rnorm(swing$intend_vote, 0, sd(unlist(mylist_3)))
+s4 <- rnorm(swing$intend_vote, 0, sd(unlist(mylist_4)))
+#add them up
+rndm_crp <- s1+s2+s3+s4
+#outcome function after level 2 regression
+outcome_strat_by_state <- function(age, edu, emp) {
+    Y <- (mean(unlist(mylist_2, use.names=FALSE))*age
+        + mean(unlist(mylist_3, use.names=FALSE))*edu
+        + mean(unlist(mylist_4, use.names=FALSE))*emp
+       + mean(unlist(mylist_1, use.names=FALSE)))
+y <- exp(Y+rndm_crp)
+    return(y)
+}
+# -
+M <- outcome_strat_by_state(swing$working_file.age, swing$education, swing$employ)
+ggplot(swing, aes(x=working_file.age+education+employ, y=log(M))) + 
+    geom_point() + geom_smooth(method=lm , color="pink", fill='blue', se=TRUE) + 
+  labs(title="Figure 2: Level 2 graph of likelihood of Trump win", subtitle="Data from NationScape Survey (2020)", x="predicting factors (age, employment, education)", y='log of odds ratio')
+
+
+
+```
+
+Figures 1a and 1b show the first level of the multilevel regression using the NationScape data. We have split them into a and b parts to accommodate a sub-analysis where prior voting behaviour in the 2016 election is factored in. The equations for Figures 1a and 1b are the following:
+
+$\ln{P} = -1.285+0.023x -0.118y+0.385z$ (1a)
+
+$\ln{P} = -1.291-0.004x-0.533y+0.010z+4.701w$ (1b)
+
+where $x$ is age, $y$ is education, and $z$ is employment, and $P$ is the odds ratio. Figure 1b also includes the binary variable $w$, which represents how a person voted in the 2016 election. Since there was no reliable way to integrate this with the ACS data, we did not carry this model forward into the second level of regression.  
+
+The equation for Figure 2 is as follows:
+
+$\ln{P}=0.021x+0.081y+0.450z-1.431$
+
+At the first level, the scatter plots form track-like patterns. At the second level, the data becomes more nebulous, as we have considered random effects. Furthermore, the line of best fit at the second level has a much wider standard error than at the first level. 
+
+```{r acs, echo=FALSE}
+# Read in the raw data. 
+raw_data <- read_dta("usa_00002.dta"
+                     )
+# Add the labels
+raw_data <- labelled::to_factor(raw_data)
+
+# Just keep some variables that may be of interest (change 
+# this depending on your interests)
+# names(raw_data)
+
+reduced_data <- 
+  raw_data %>% 
+  select(region,
+         stateicp,
+         empstat,
+         sex, 
+         age, 
+         race, 
+         hispan,
+         marst, 
+         bpl,
+         citizen,
+         educd,
+         labforce,
+         inctot)
+rm(raw_data)
+
+
+# ### What's next? ####
+
+# +
+#Remove Non-Citizens (Can't vote, therefore not included)
+'%!in%' <- function(x,y)!('%in%'(x,y))
+notVoteAge <- 1:17
+canVote <- reduced_data %>% 
+  filter(citizen %in% c("n/a", "naturalized citizen", "born abroad of American parents")) %>% 
+  filter(age %!in% notVoteAge & age != "less than 1 year old")
+
+#data.frame(education, working_file$age, working_file$state, employ, voter_prior_behave)
+
+#Narrow down to the swing states "north carolina", "florida", "pennsylania", "michigan", "arizona", "wisconsin", "ohio"
+canVote <- canVote %>% 
+  filter(stateicp %in% c("north carolina", "florida", "pennsylvania", "michigan", "arizona", "wisconsin", "ohio"))
+
+#Vector of Education:
+degrees <- c("associate's degree, type not specified",
+               "associate's degree, occupational program",
+               "associate's degree, academic program",
+               "bachelor's degree",
+               "master's degree",
+               "doctoral degree",
+               "professional degree beyond a bachelor's degree")
+
+#Having degree = Higher level of education
+hasDegree <- ifelse(canVote$educd %in% degrees, 1, 0)
+
+#Employment vector
+isEmployed <- ifelse(canVote$empstat == "employed", 1, 0)
+
+postStratData <- data.frame(hasDegree, canVote$age, canVote$stateicp, isEmployed)
+
+#post-stratification data using coefficients from the level 1 model
+PS_lev1 <- (-1.28474587+0.02274943*as.numeric(postStratData$canVote.age)[1:1216]
+            -0.11797110*as.numeric(postStratData$hasDegree)[1:1216]
+            +0.38548255*as.numeric(postStratData$isEmployed)[1:1216]
+)
+#post-stratification data using coefficients from the level 2 model
+means <- c(mean(unlist(mylist_1, use.names=FALSE)), 
+           mean(unlist(mylist_2, use.names=FALSE)), 
+           mean(unlist(mylist_3, use.names=FALSE)), 
+           mean(unlist(mylist_4, use.names=FALSE)))
+#seed
+set.seed(length(swing$vote_2020))
+#normal distributions
+sd1 <- rnorm(1216, 0, sd(unlist(mylist_1)))
+sd2 <- rnorm(1216, 0, sd(unlist(mylist_2)))
+sd3 <- rnorm(1216, 0, sd(unlist(mylist_3)))
+sd4 <- rnorm(1216, 0, sd(unlist(mylist_4)))
+#add them up
+rndm_crp_2 <- sd1+sd2+sd3+sd4
+PS_lev2 <- (means[1]+means[2]*as.numeric(postStratData$canVote.age)[1:1216]
+            +means[3]*as.numeric(postStratData$hasDegree)[1:1216]
+            +means[4]*as.numeric(postStratData$isEmployed)[1:1216]+rndm_crp_2)
+
+ggplot(postStratData[1:1216,], aes(x=as.numeric(postStratData$canVote.age[1:1216])+
+                                     as.numeric(postStratData$hasDegree)[1:1216]+
+                                     as.numeric(postStratData$isEmployed)[1:1216], y=PS_lev1)) + 
+  geom_point() + geom_smooth(method=lm , color="pink", fill='blue', se=TRUE) + 
+  labs(title="Figure 3: Level 1 graph of likelihood of Trump win", subtitle="Data from ACS survey (2020)", x="predicting factors (age, employment, education)", y='log of odds ratio')
+
+
+ggplot(postStratData[1:1216,], aes(x=as.numeric(postStratData$canVote.age[1:1216])+
+                            as.numeric(postStratData$hasDegree)[1:1216]+
+                            as.numeric(postStratData$isEmployed)[1:1216], y=PS_lev2)) + 
+  geom_point() + geom_smooth(method=lm , color="pink", fill='blue', se=TRUE) + 
+  labs(title="Figure 4: Level 2 graph of likelihood of Trump win", subtitle="Data from ACS survey (2020)", x="predicting factors (age, employment, education)", y='log of odds ratio')
+
+
+```
+Figures 3 and 4 shows the patterns repeat even when the model is applied to the ACS data, the patterns persist. The first level has a scatterplot that exhibits a tracklike pattern and a line of best fit with a small standard error, while the second level exhibits cloudy patterns and the line of best fit has a wider standard error than the level 1 version.
+
+```{r states, echo=FALSE}
+nationscape <- c(mean(log(T)), mean(log(M)))
+acs <- c(mean(PS_lev1), mean(PS_lev2))
+vector_c <- c('Level 1 overall', 'Level 2 overall')
+knitr::kable(rbind(nationscape, acs), caption = 'Table 1: Overall average outcome', col.names = vector_c)
+
+```
+In all cases, the mean is less than zero. This can be broken down by state as follows:
+```{r states2, echo=FALSE}
+#survey data
+swing$lvl1out <- log(T)
+swing$lvl2out <- log(M)
+
+knitr::kable(aggregate(swing[, 7:8], list(swing$working_file.state), mean), caption = 'Table 2: State breakdown using NationScape data',col.names = c('State','Level 1 mean', 'Level 2 mean'))
+```
+Out of all the states, only Michigain has an average $\ln{P}$ greater than zero (and that's only for level 2). 
+
+## Discussion
+
+The model reveals that older, employed, and more educated people are more likely to vote for Trump. If ln(P) is greater than zero, it means odds ratio is greater than 1. This implies the odds are in favour of Trump. In contrast, if ln(P) less than zero, it means the odds ratio is less than 1. This implies the odds are in favour of Biden. The  track-like formations of the level 1 regression and the nebulous formation of the level 2 regression suggest random effects overpower the impact of the predicted variables. These patterns replicate themselves in the ACS data. This suggest that this is not a symptom of the model (we can replicate the effects with a different data set). Once again, the odds of voting for Trump increase with age and employment.
+
+We can use this model to predict what direction each swing state will swing. The mean of the output data is consistently less than zero, suggesting a victory for Biden. This is likely due to more young people voting, and higher than average mail in votes. When broken down by state, this pattern was repeated consistently. This means that all the swing states (with possibly the exception of Michigan) will swing Democratic. Therefore, on its own, the model suggests that Biden will win.
+
+All models have limitations in terms of their performance. This is especially true with anything where the behaviour of large groups of humans is involved. Some major limitations of the models in our analysis include failure to distinguish between early voting, versus voting on election day proper. It is speculated that Democrats are more likely to vote early (especially through mail in), while Republicans are more likely to vote on election day. If this is true, an election day surprise could occur. Another, crucial thing this model is unable to take into account is the bias of the press in favour of Biden. More press coverage of Biden could possibly lead to more people thinking Biden is going to win, and mobilize more Trump voters. If this effect is large enough, Trump could potentially end up winning again. This is not unlike the phenomenon in quantum mechanics in which observing the experiment changes the outcome. 
+
+Some follow up questions include investigations as to whether connections between the popular vote and the electoral college results exist. Another follow up question, which is interesting this year because of the circumstances, pertains to the anomalous quantities of unusable ballots. Now, more than ever, Americans voted by mail. If mail in ballots don't come in until a week after election day, then they cannot be counted. Since way more people used mail-in voting than prior elections, the amount of lost votes is going to be that much greater. As stated before, Democrats are more likely to use mail-in voting, thus the late ballots are more likely going to be democratic, potentially giving Republicans the upper hand.
+
+This investigation also provides insights into future poll design. Polls should not only consider metrics like education and employment, but also the sector in which a respondent is employed. 
+Sector provides powerful and valuable hints at who votes for what party. People who work in industries such as the media will vote Democrat, while blue collar people will vote Republican.
+
+
+## References
+
+Alice, Michy. "How to Perform a Logistic Regression in R." R-bloggers. Last modified July 5, 2020. https://www.r-bloggers.com/2015/09/how-to-perform-a-logistic-regression-in-r/.
+
+CBC News. "U.S. Election: What Early Voting Patterns Say About the Race." YouTube. October 24, 2020. https://youtu.be/WCQr4CBVWGg.
+
+Faulkner, Leeanna. "What Are the Key Swing States in the 2020 Election, and Who is Leading the Battleground Polls?" The Telegraph. Last modified October 31, 2020. https://www.telegraph.co.uk/news/0/swing-states-what-key-battleground-2020-election-who-leading-polls/.
+
+Grenier, Eric. "How U.S. polls got it wrong in 2016 — and why they're more likely to get it right this time." CBC News, October 17, 2020. https://www.cbc.ca/news/politics/grenier-uspolls-trust-1.5765695?__vfz=medium%3Dsharebar.
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+Hadley Wickham and Evan Miller (2020). haven: Import and Export 'SPSS', 'Stata' and 'SAS' Files.
+  http://haven.tidyverse.org, https://github.com/tidyverse/haven, https://github.com/WizardMac/ReadStat.
+  
+Joseph Larmarange (2020). labelled: Manipulating Labelled Data. R package version 2.7.0.
+  http://larmarange.github.io/labelled/
+  
+Le, James. "Logistic Regression in R Tutorial." DataCamp Community. Last modified April 10, 2018. https://www.datacamp.com/community/tutorials/logistic-regression-R.
+
+R Core Team (2020). R: A language and environment for statistical computing. R Foundation for Statistical
+  Computing, Vienna, Austria. URL https://www.R-project.org/.
+
+Steven Ruggles, Sarah Flood, Ronald Goeken, Josiah Grover, Erin Meyer, Jose Pacas and Matthew Sobek. IPUMS USA: Version 10.0 [dataset]. Minneapolis, MN: IPUMS, 2020.https://doi.org/10.18128/D010.V10.0
+
+Tausanovitch, Chris and Lynn Vavreck. 2020. Democracy Fund + UCLA Nationscape, October 10-17, 2019 (version 20200814).     Retrieved from https://www.voterstudygroup.org/data.
+
+Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43), 1686,
+  https://doi.org/10.21105/joss.01686
+
+
