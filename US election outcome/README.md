@@ -15,7 +15,7 @@ Inputs contain data that are unchanged from their original. We use two datasets:
 - [ACS data - detail how to get the ACS data.]
 To access the ACS data, you must first go to 
 https://usa.ipums.org/usa/index.shtml 
-and log in / register. Then, navigate to "create your custo. data set" in the 
+and log in / register. Then, navigate to "create your custom data set" in the 
 homepage, or "https://usa.ipums.org/usa-action/variables/group". Then, under
 "SELECT SAMPLES", only the 2018 ACS data was used. Then, the following
 harmonized variables are chosen:
