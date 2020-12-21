@@ -12,7 +12,7 @@ This folder contains:
 
 # Data retrieval:
 
-CES data: simply install the cesR library using the following command
+CES data: simply install the cesR library using the following command: devtools::install_github("hodgettsp/cesR")
 
 GSS data: to access the GSS data, you will need to do the following
 1. log into the CHASS (Computing for Humanities And Social Sciences) page: http://dc.chass.utoronto.ca/myaccess.html
