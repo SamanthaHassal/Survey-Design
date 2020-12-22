@@ -1,0 +1,473 @@
+---
+title: "Using Multilevel Regression With Post Stratification To Construct A Retrospective Idealized Case Of The 2019 Federal Election In Canada"
+author: "Samantha Hassal"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Abstract:
+
+Multilevel regression is a power statistical tool with a wide range of uses, but its most well-known use is election forecasting. This paper uses multilevel regression to determine which political party would have won the 2019 Canadian federal election if all Canadians who were eligible to vote had voted. The model shows that under idealized, full turnout conditons, the Liberal pary would have won the election. This is due to how the Liberal party's platofrm resonates with the omnipresent cultural appeal of a happy medium in Canada.
+
+**Keywords:** multilevel regression with post stratification, Canadian Election Study, Canadian General Social Survey, 2019 Canadian Federal Election, Politics in Canada, voter turnout, voter turnout in Canada
+
+_Code:_ Code used to generate the results of this work can be found [here](https://github.com/SamanthaHassal/Survey-Design/tree/master/Canada%202019%20election%20full%20turnou%20what%20if)
+
+## Introduction
+
+Multilevel regression with post stratification (MRP) is a method of estimation that employs models it take into account random effects along with a data set that has been adjusted such that all groups are represented. Those who wish to conduct MRP take the following steps. First, they conduct a survey or gather data from a previously conducted survey. Then, they construct a multilevel model. Afterwards, they obtain a post-stratification data set, and apply that to the model. Lastly, they aggregate the results. We can summarize the process in two steps. The first step, multilevel regression, predict unobserved data by estimating the distribution of each subgroup average. The second step, application of postrach data, fills in the blanks to make predictions by turning the above into an estimate for the population mean.
+
+MRP enjoys a great many uses. The most popular application of the method is forecasting elections, an example of which can be found in a paper by Wei Wang, David Rothschild, Sharad Goel, and Andrew Gelman on its use for this purpose. In that paper, data collected by Xbox was used to forecast who would win the 2012 US presidential election. Chris Hanretty’s paper “An Introduction to Multilevel Regression and Post- Stratification for Estimating Constituency Opinion” outlines a more general application of the method in the field of politcal science. By and large, MRP is a versatile tool indispensable to statisticians. 
+
+In this work, we will attempt to use MRP to answer the question “who would have won the 2019 federal election in Canada had everyone who is capable of voting did so?” Since this is a reconstruction of a “what if” scenario, this paper will discuss the results of our model in the context of full voter turnout. We will also give a description of why voter turnout influences the results of the election.
+
+
+```{r dataload, echo=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+# install cesR package
+#devtools::install_github("hodgettsp/cesR")
+
+# load cesR package and labelled package
+library(cesR)
+library(labelled)
+library(tidyverse)
+
+# call 2019 CES online survey
+get_ces("ces2019_web")
+# convert values to factor type
+ces2019_web <- to_factor(ces2019_web)
+```
+
+## Data:
+
+We will generate our multilevel model using CES (Canadian Election Study) data as the initial data. This Data is collected every election year by two means: a web-based survey (n=37822), and a phone survey (n=4021). We shall use the results of the web survey because of the larger sample size. The survey population is Canadian voters, the frame is the recipients of the survey (either link to the web based survey or the phone survey), and the sample is those who have completed the survey and consented to inclusion of their results in the data set. We then filtered the data based on eligibility to vote as per Elections Canada’s criteria. Effectively, this translates into excluding records that indicate the person is not a Canadian citizen and/or under 18 years of age. The data contains records of age, citizenship status, education, and satisfaction with governmental processes (such as their statisfaction with the federal government and their satisfaction with democracy) in Canada. 
+
+Our post stratification data set is the Canadian general social survey (GSS). The GSS is a series of independent, cross-sectional surveys used to collect data on certain issues in Canadian society. The population of this survey is the Canadian people. The frame and sample of this GSS are Statistics Canada’s common telephone frame, Statistics Canada’s common dwelling frame mapped to cell phones and landlines registered at a given address and the respondents, respectively. Like the CES data, the GSS contains records of Age, Citizenship status (E.g., Canadian citizen, permanent resident), and Education. It also contains records of a person’s outlook on life on a scale of 1 to 10. Since we will use the general social survey results from 2017, we have n=25000 records to start with. 
+
+We will separate cells by province. A potential drawback is data loss because GSS doesn’t record territories as provinces, but CES data does. However; the graph below illustrates that so few CES records come from territories that the data loss wouldn’t be substantial if they were omitted from the data set.
+
+
+```{r pressure, echo=FALSE}
+vote_likelihood <- ces2019_web$cps19_v_likely
+citizenship <- ces2019_web$cps19_citizenship
+age <- ces2019_web$cps19_age
+#pick out variables of interest in the data file
+var_of_interest <- ces2019_web %>% 
+  select(cps19_v_likely, cps19_citizenship, cps19_province, cps19_education, cps19_votechoice, cps19_2nd_choice, cps19_age, cps19_demsat, cps19_fed_gov_sat) %>%
+  filter(citizenship=="Canadian citizen")
+
+#load poststrat dataset
+data <- read.csv("gss-Copy1.csv")
+reduced_data <- data %>%
+  filter(citizenship_status %in% c("By birth", "By naturalization"))
+ps_var_of_interest <- reduced_data %>% 
+  select(age, education, feelings_life, province)
+
+```
+
+
+
+```{r echo=FALSE}
+library(ggplot2)
+ces_prov <- ggplot(ces2019_web, aes(x=cps19_province)) + geom_bar() +labs(title="Province Distribution", subtitle="Data from cesR (2019)", x="Province", y='number of responses')
+ces_prov + coord_flip()
+
+```
+
+Why separate cells by province? In politics, interplay between the people who see the world from somewhere and the people who see the world from anywhere will always exist. The anywhere’s live in large cities and are well educated and vote for left of center parties, such as the Liberal, NDP, and maybe Green. The somewheres live out in the country and have less education and vote for right of center parties, such as the Conservative party and perhaps the Bloc Québecois.Thus, we stratified by province to even out the bumps in public opinion of a given party and get a better sense of which party wins the election overall. 
+
+```{r echo=FALSE, warning=FALSE}
+
+```
+
+## Model:
+
+```{r model, echo=FALSE, message=FALSE, warning=FALSE}
+#identify parties
+NDP <- ifelse(var_of_interest$cps19_votechoice=="ndp", 1, 0)
+green <- ifelse(var_of_interest$cps19_votechoice=="Green Party", 1, 0)
+liberal <- ifelse(var_of_interest$cps19_votechoice=="Liberal Party", 1, 0)
+BQ <- ifelse(var_of_interest$cps19_votechoice=="Bloc Québécois", 1, 0)
+conservative <- ifelse(var_of_interest$cps19_votechoice=="Conservative Party ", 1, 0)
+#identify education
+higher_ed <- c("Completed technical, community college, CEGEP, College Classique", "Master's degree", "Professional degree or doctorate", "Bachelor's degree")
+education <- ifelse(var_of_interest$cps19_education %in% higher_ed, 1, 0)
+#satisfaction score 
+sat_w_dem <- c("Very satisfied" , "Fairly satisfied", "Not very satisfied", "Not at all satisfied", "Don't know/ Prefer not to answer")
+#map qualitative labels with quantities
+L5 <- ifelse(var_of_interest$cps19_demsat %in% sat_w_dem[1], 1,0)
+L4 <- ifelse(var_of_interest$cps19_demsat %in% sat_w_dem[1:2], 1,0)
+L3 <- ifelse(var_of_interest$cps19_demsat %in% sat_w_dem[1:3], 1,0)
+L2 <- ifelse(var_of_interest$cps19_demsat %in% sat_w_dem[1:4], 1,0)
+L1 <- ifelse(var_of_interest$cps19_demsat %in% sat_w_dem[1:5], 1,0)
+demscore <- L5+L4+L3+L2+L1
+W5 <- ifelse(var_of_interest$cps19_fed_gov_sat %in% sat_w_dem[1], 1,0)
+W4 <- ifelse(var_of_interest$cps19_fed_gov_sat %in% sat_w_dem[1:2], 1,0)
+W3 <- ifelse(var_of_interest$cps19_fed_gov_sat %in% sat_w_dem[1:3], 1,0)
+W2 <- ifelse(var_of_interest$cps19_fed_gov_sat %in% sat_w_dem[1:4], 1,0)
+W1 <- ifelse(var_of_interest$cps19_fed_gov_sat %in% sat_w_dem[1:5], 1,0)
+fedscore <- W5+W4+W3+W2+W1
+score <- (demscore+fedscore)/2
+
+#GLM models with age, education, and sarisfaction score
+C_model <- glm(conservative ~ var_of_interest$cps19_age+education+score, data=var_of_interest, family="binomial", control = list(maxit = 100))
+lib_model <- glm(liberal ~ var_of_interest$cps19_age+education+score, data=var_of_interest, family="binomial")
+green_model <- glm(green ~ var_of_interest$cps19_age+education+score, data=var_of_interest, family="binomial")
+ndp_model <- glm(NDP ~ var_of_interest$cps19_age+education+score, data=var_of_interest, family="binomial")
+bq_model <- glm(BQ ~ var_of_interest$cps19_age+education+score, data=var_of_interest, family="binomial")
+
+#create a vector of provinces that appear in both datasets 
+#(the CES data includes the territories, while the GSS doesn't)
+provinces <- unique(ps_var_of_interest$province)
+
+#add quant variables to the data frame
+var_of_interest$BQ <- BQ
+var_of_interest$NDP <- NDP
+var_of_interest$liberal <- liberal
+var_of_interest$conservative <- conservative
+var_of_interest$green <- green
+var_of_interest$sat_score <- score
+var_of_interest$has_higher_ed <- education
+
+#select only records in provinces in both data sets
+working_file <- var_of_interest %>%
+  filter(cps19_province %in% provinces)
+
+#empty vector for storage (we will need one of these for each model)
+out_green <- matrix(ncol = length(provinces), nrow = 4)
+out_liberal <- matrix(ncol = length(provinces), nrow = 4)
+out_conservative <- matrix(ncol = length(provinces), nrow = 4)
+out_ndp <- matrix(ncol = length(provinces), nrow = 4)
+out_bq <- matrix(ncol = length(provinces), nrow = 4)
+
+#loop over provinces, building models for each
+for (i in seq_along(provinces))
+{
+  tmp <- working_file %>% filter(working_file$cps19_province==provinces[i])
+  tmp_model_C <- glm(tmp$conservative ~ tmp$cps19_age+tmp$has_higher_ed+tmp$sat_score, 
+                   data=tmp, 
+                   family="binomial")
+  tmp_model_BQ <- glm(tmp$BQ ~ tmp$cps19_age+tmp$has_higher_ed+tmp$sat_score, 
+                     data=tmp, 
+                     family="binomial")
+  tmp_model_NDP <- glm(tmp$NDP ~ tmp$cps19_age+tmp$has_higher_ed+tmp$sat_score, 
+                     data=tmp, 
+                     family="binomial")
+  tmp_model_green <- glm(tmp$green ~ tmp$cps19_age+tmp$has_higher_ed+tmp$sat_score, 
+                       data=tmp, 
+                       family="binomial")
+  tmp_model_liberal <- glm(tmp$liberal ~ tmp$cps19_age+tmp$has_higher_ed+tmp$sat_score, 
+                         data=tmp, 
+                         family="binomial")
+  out_green[, i] <- tmp_model_green$coefficients
+  out_ndp[, i] <- tmp_model_NDP$coefficients
+  out_liberal[, i] <- tmp_model_liberal$coefficients
+  out_bq[, i] <- tmp_model_BQ$coefficients
+  out_conservative[, i] <- tmp_model_C$coefficients
+} 
+
+#generate L2 model coefficients
+L2_coef_C <-  c(mean(out_conservative[1,]), 
+                mean(out_conservative[2,]),
+                mean(out_conservative[3,]),
+                mean(out_conservative[4,]))
+L2_coef_liberal <-  c(mean(out_liberal[1,]), 
+                mean(out_liberal[2,]),
+                mean(out_liberal[3,]),
+                mean(out_liberal[4,]))
+L2_coef_ndp <-  c(mean(out_ndp[1,]), 
+                      mean(out_ndp[2,]),
+                      mean(out_ndp[3,]),
+                      mean(out_ndp[4,]))
+L2_coef_bq <-  c(mean(out_bq[1,]), 
+                  mean(out_bq[2,]),
+                  mean(out_bq[3,]),
+                  mean(out_bq[4,]))
+L2_coef_green <-  c(mean(out_green[1,]), 
+                 mean(out_green[2,]),
+                 mean(out_green[3,]),
+                 mean(out_green[4,]))
+
+#first level of modeling
+level_1_C <- (C_model$coefficients[1]+C_model$coefficients[2]*var_of_interest$cps19_age
+              +C_model$coefficients[3]*var_of_interest$has_higher_ed
+              +C_model$coefficients[4]*var_of_interest$sat_score)
+level_1_green <- (green_model$coefficients[1]
+                  +green_model$coefficients[2]*var_of_interest$cps19_age
+              +green_model$coefficients[3]*var_of_interest$has_higher_ed
+              +green_model$coefficients[4]*var_of_interest$sat_score)
+level_1_ndp <- (ndp_model$coefficients[1]
+                  +ndp_model$coefficients[2]*var_of_interest$cps19_age
+              +ndp_model$coefficients[3]*var_of_interest$has_higher_ed
+              +ndp_model$coefficients[4]*var_of_interest$sat_score)
+level_1_liberals <- (lib_model$coefficients[1]
+                  +lib_model$coefficients[2]*var_of_interest$cps19_age
+              +lib_model$coefficients[3]*var_of_interest$has_higher_ed
+              +lib_model$coefficients[4]*var_of_interest$sat_score)
+level_1_bq <- (bq_model$coefficients[1]
+                  +bq_model$coefficients[2]*var_of_interest$cps19_age
+              +bq_model$coefficients[3]*var_of_interest$has_higher_ed
+              +bq_model$coefficients[4]*var_of_interest$sat_score)
+#seeding
+N = length(working_file$cps19_v_likely)
+set.seed(N)
+
+#level 2 modelling
+A <- working_file$cps19_age+rnorm(N, mean=0, sd=sd(out_conservative[2,], na.rm = TRUE))
+B <- working_file$has_higher_ed+rnorm(N, mean=0, sd=sd(out_conservative[3,], na.rm = TRUE))
+C <- working_file$sat_score+rnorm(N, mean=0, sd=sd(out_conservative[4,], na.rm = TRUE))
+D <- rnorm(N, mean=0, sd=sd(out_conservative[1,], na.rm = TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+level_2_C <- (L2_coef_C[1]+D+L2_coef_C[2]*(A)+L2_coef_C[3]*(B)+L2_coef_C[4]*(C))
+
+A <- working_file$cps19_age+rnorm(N, mean=0, sd=sd(out_green[2,], na.rm=TRUE))
+B <- working_file$has_higher_ed+rnorm(N, mean=0, sd=sd(out_green[3,], na.rm=TRUE))
+C <- working_file$sat_score+rnorm(N, mean=0, sd=sd(out_green[4,], na.rm=TRUE))
+D <- rnorm(N, mean=0, sd=sd(out_green[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+level_2_green <- (L2_coef_green[1]+D+L2_coef_green[2]*(A)+L2_coef_green[3]*(B)+L2_coef_green[4]*(C))
+
+A <- working_file$cps19_age+rnorm(N, mean=0, sd=sd(out_liberal[2,], na.rm=TRUE))
+B <- working_file$has_higher_ed+rnorm(N, mean=0, sd=sd(out_liberal[3,], na.rm=TRUE))
+C <- working_file$sat_score+rnorm(N, mean=0, sd=sd(out_liberal[4,], na.rm=TRUE))
+D <- rnorm(N, mean=0, sd=sd(out_liberal[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+level_2_liberal <- (L2_coef_liberal[1]+D+L2_coef_liberal[2]*(A)+L2_coef_liberal[3]*(B)+L2_coef_liberal[4]*(C))
+
+A <- working_file$cps19_age+rnorm(N, mean=0, sd=sd(out_ndp[2,], na.rm=TRUE))
+B <- working_file$has_higher_ed+rnorm(N, mean=0, sd=sd(out_ndp[3,], na.rm=TRUE))
+C <- working_file$sat_score+rnorm(N, mean=0, sd=sd(out_ndp[4,], na.rm=TRUE))
+D <- rnorm(N, mean=0, sd=sd(out_ndp[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+level_2_ndp <- (L2_coef_ndp[1]+D+L2_coef_ndp[2]*(A)+L2_coef_ndp[3]*(B)+L2_coef_ndp[4]*(C))
+
+A <- working_file$cps19_age+rnorm(N, mean=0, sd=sd(out_bq[2,], na.rm=TRUE))
+B <- working_file$has_higher_ed+rnorm(N, mean=0, sd=sd(out_bq[3,], na.rm=TRUE))
+C <- working_file$sat_score+rnorm(N, mean=0, sd=sd(out_bq[4,], na.rm=TRUE))
+D <- rnorm(N, mean=0, sd=sd(out_bq[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+level_2_bq <- (L2_coef_bq[1]+D+L2_coef_bq[2]*(A)+L2_coef_bq[3]*(B)+L2_coef_bq[4]*(C))
+```
+
+This work will use a frequentist logistic regression. We will do this because we deal with a lot of binary variables. Our model makes use of R’s glm() function. This function is baked into R, so there is less chance of a crash due to failing to import relevant libraries properly and we can use the glm() function to handle logistic models. The key difference between linear regression and logistic regression is that in a linear regression, the output can go less than zero or greater than one, while in a logistic regression, the output must be $0<x<1$. We can go back and forth between the equation $y=mx+b$ like so:
+
+$p(x)=\frac{e^{\beta_{0}+\beta_{1} x}}{1+e^{\beta_{0}+\beta_{1} x}}$
+
+$\frac{p(x)}{1-p(x)}={e^{\beta_{0}+\beta_{1} x}}$
+
+$\ln{\frac{p(x)}{1-p(x)}}=\beta_{0}+\beta_{1} x$
+
+Here, $y$ represents the logarithm of the odds $O$. If $y$ is greater than zero, that means the odds is greater than one. If $y$ is less than zero, it means $0<O<1$. 
+
+Multilevel regressions either have a noisy intercept (good), noisy slope (better), or both (best). Here, we use both a noisy slope and intercept, as it is more accurate. We will construct a model for each party individually. The parties we will use are the Liberals, the NDPs, the Conservatives, the Greens, and the Bloc Quebecois. Thus, this means the logarithm of the odds will mean whether or not the odds are in favour of a win for that party. Thus, $ln(O)>0$ means the odds are in favour of a party win, while $ln(O)<0$ means the odds are against a party win. If $ln(O)=0$, it implies 50-50 odds.
+
+Our model uses the following factors: age (a covariate), education (a categorical variable, because trying to estimate the number of years spent in school is messy), and the satisfaction score, defined as the average of satisfaction with democracy in Canada and satisfaction with federal government. The latter two variables were labeled qualitatively, so we converted the qualitative labels into a scale of 1 to 5 (those who responded with "Don't know/prefer not to answer" were scored 0). Since the CES is the only data set we use that explicitly quantifies satisfaction with democracy and the federal government, we use the outlook on life divided by 2 in our post-strat data set as a proxy measurement for satisfaction score. We have included plots of the satisfaction with democracy and federal government and outlook on life in the appendix.
+
+```{r post strat, echo=FALSE, message=FALSE, warning=FALSE}
+#set up post strat data
+ps_working <- ps_var_of_interest %>%
+  filter(ps_var_of_interest$age>=18)
+#education vector for post strat
+ps_edu <- c(unique(ps_working$education)[4], unique(ps_working$education)[7], unique(ps_working$education)[3], unique(ps_working$education)[2])
+#set up numeric variables
+ps_working$score_sat <- ps_working$feelings_life/2
+ps_working$has_higher_ed <- ifelse(ps_working$education %in% ps_edu, 1,0)
+#find vector size
+M <- length(ps_working$score_sat)
+
+#level 2 modelling with PS data
+A <- ps_working$age+rnorm(M, mean=0, sd=sd(out_conservative[2,], na.rm = TRUE))
+B <- ps_working$has_higher_ed+rnorm(M, mean=0, sd=sd(out_conservative[3,], na.rm = TRUE))
+C <- ps_working$score_sat+rnorm(M, mean=0, sd=sd(out_conservative[4,], na.rm = TRUE))
+D <- rnorm(M, mean=0, sd=sd(out_conservative[1,], na.rm = TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+PS_conc <- (L2_coef_C[1]+D+L2_coef_C[2]*(A)+L2_coef_C[3]*(B)+L2_coef_C[4]*(C))
+
+A <- ps_working$age+rnorm(M, mean=0, sd=sd(out_green[2,], na.rm=TRUE))
+B <- ps_working$has_higher_ed+rnorm(M, mean=0, sd=sd(out_green[3,], na.rm=TRUE))
+C <- ps_working$score_sat+rnorm(M, mean=0, sd=sd(out_green[4,], na.rm=TRUE))
+D <- rnorm(M, mean=0, sd=sd(out_green[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+PS_green <- (L2_coef_green[1]+D+L2_coef_green[2]*(A)+L2_coef_green[3]*(B)+L2_coef_green[4]*(C))
+
+A <- ps_working$age+rnorm(M, mean=0, sd=sd(out_liberal[2,], na.rm=TRUE))
+B <- ps_working$has_higher_ed+rnorm(M, mean=0, sd=sd(out_liberal[3,], na.rm=TRUE))
+C <- ps_working$score_sat+rnorm(M, mean=0, sd=sd(out_liberal[4,], na.rm=TRUE))
+D <- rnorm(M, mean=0, sd=sd(out_liberal[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+PS_liberal <- (L2_coef_liberal[1]+D+L2_coef_liberal[2]*(A)+L2_coef_liberal[3]*(B)+L2_coef_liberal[4]*(C))
+
+A <- ps_working$age+rnorm(M, mean=0, sd=sd(out_ndp[2,], na.rm=TRUE))
+B <- ps_working$has_higher_ed+rnorm(M, mean=0, sd=sd(out_ndp[3,], na.rm=TRUE))
+C <- ps_working$score_sat+rnorm(M, mean=0, sd=sd(out_ndp[4,], na.rm=TRUE))
+D <- rnorm(M, mean=0, sd=sd(out_ndp[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+PS_ndp <- (L2_coef_ndp[1]+D+L2_coef_ndp[2]*(A)+L2_coef_ndp[3]*(B)+L2_coef_ndp[4]*(C))
+
+A <- ps_working$age+rnorm(M, mean=0, sd=sd(out_bq[2,], na.rm=TRUE))
+B <- ps_working$has_higher_ed+rnorm(M, mean=0, sd=sd(out_bq[3,], na.rm=TRUE))
+C <- ps_working$score_sat+rnorm(M, mean=0, sd=sd(out_bq[4,], na.rm=TRUE))
+D <- rnorm(M, mean=0, sd=sd(out_bq[1,], na.rm=TRUE))
+A <- A[!is.na(A)]
+B <- A[!is.na(B)]
+C <- A[!is.na(C)]
+D <- A[!is.na(D)]
+PS_bq <- (L2_coef_bq[1]+D+L2_coef_bq[2]*(A)+L2_coef_bq[3]*(B)+L2_coef_bq[4]*(C))
+```
+
+
+## Results:
+
+```{r graphs, echo=FALSE, message=FALSE}
+#set colors
+colors <- c("CON" = "blue", "LIB" = "red", "NDP" = "orange", "GRN" = "green", "QUE"="yellow")
+
+#make a plot of the L2 model with original data
+ggplot(working_file, aes(x=cps19_age+has_higher_ed+sat_score)) + 
+  geom_point(aes(y = level_2_liberal), color = "darkred")+ geom_smooth(aes(y = level_2_liberal, color="LIB"), method=lm , fill='pink', se=TRUE) + 
+  geom_point(aes(y = level_2_C), color="steelblue") + geom_smooth(aes(y = level_2_C, color="CON"), method=lm , fill='lightcyan', se=TRUE) +geom_point(aes(y = level_2_ndp), color="darkorange") + geom_smooth(aes(y = level_2_ndp, color="NDP"), method=lm , fill='darkorange1', se=TRUE)+geom_point(aes(y = level_2_green), color="green4") + geom_smooth(aes(y = level_2_green, color="GRN"), method=lm , fill='green2', se=TRUE)+geom_point(aes(y = level_2_bq), color="sienna") + geom_smooth(aes(y = level_2_bq, color="QUE"), method=lm , fill='yellow2', se=TRUE)+labs(title="Figure 1: Graph of odds of party win for each party (L2)", subtitle="Data from CES (2019)", x="predicting factors (age, education, satisfaction with gov. processes)", y='log of odds')+scale_color_manual(values=colors)
+```
+Below are the equations for each of the lines of best fit at the second level of the multilevel regression:
+
+$\ln(O)=-23.97+2.67*10^{-3}x_{1}-1.17*10^{-2}x_{2}-5.98*10^{-2}x_{3}$ (BQ)
+
+$\ln(O)=-0.39-2.88*10^{-2}x_{1}-9.06*10^{-2}x_{2}-3.54*10^{-2}x_{3}$ (NDP)
+
+$\ln(O)=-9.70+6.78*10^{-3}x_{1}+0.24x_{2}+2.23x_{3}$ (Liberal)
+
+$\ln(O)=-26.57$ (Conservative)
+
+$\ln(O)=-0.83-1.80*10^{-2}x_{1}-1.33*10^{-2}x_{2}-0.229x_{3}$ (Green)
+
+where $x_{1}$ is age, $x_{2}$ is if someone has higher education, and $x_{3}$ is their satisfaction with government processes. 
+
+```{r graphing2, echo=FALSE, warning=FALSE, message=FALSE}
+#set colors
+colors <- c("CON" = "blue", "LIB" = "red", "NDP" = "orange", "GRN" = "green", "QUE"="yellow")
+
+#make a plot of the L2 model with post strat data
+ggplot(ps_working, aes(x=age+has_higher_ed+score_sat)) + 
+  geom_point(aes(y = PS_liberal), color = "darkred")+ geom_smooth(aes(y = PS_liberal, color="LIB"), method=lm , fill='pink', se=TRUE) + 
+  geom_point(aes(y = PS_conc), color="steelblue") + geom_smooth(aes(y = PS_conc, color="CON"), method=lm , fill='lightcyan', se=TRUE) +geom_point(aes(y = PS_ndp), color="darkorange") + geom_smooth(aes(y = PS_ndp, color="NDP"), method=lm , fill='darkorange1', se=TRUE)+geom_point(aes(y = PS_green), color="green4") + geom_smooth(aes(y = PS_green, color="GRN"), method=lm , fill='green2', se=TRUE)+geom_point(aes(y = PS_bq), color="sienna") + geom_smooth(aes(y = PS_bq, color="QUE"), method=lm , fill='yellow2', se=TRUE)+labs(title="Figure 2: Graph of odds of party win for each party (with PS data)", subtitle="Data from General Social Survey (2017)", x="predicting factors (age, education, satisfaction with gov. processes)", y='log of odds')+scale_color_manual(values=colors)
+```
+Both Figure 1 and Figure 2 show similar trends. In short, the graphs display that the odds of a party win increased modestly each of the predicting factors across each party, with the exception of the liberals, where the odds increase dramatically. The graphs also show that, despite the regression equation being constant for the conservatives, the log of odds seem to increase in a similar fashion to the odds of a BQ win. 
+
+```{r table, echo=FALSE}
+#set up a table to compare average values
+original <- round(c(mean(level_2_green), mean(level_2_bq), mean(level_2_C), mean(level_2_liberal), mean(level_2_ndp)), 3)
+postStrat <- round(c(mean(PS_green), mean(PS_bq), mean(PS_conc), mean(PS_liberal), mean(PS_ndp)), 3)
+vector_c <- c('Green party', 'Bloc Québecois', 'Conservatives', 'Liberal', 'NDP')
+knitr::kable(rbind(original, postStrat), caption = 'Overall average log of odds for both original data and PS data', col.names = vector_c)
+
+```
+
+The above table shows that this increase impacts the average log of odds. This suggests within the noise exists an unknwon predictor not covered by our equation. Regardless, the average log of odds of a Conservative win are still the lowest, behind only the BQ. The highest average log of odds of a party win belongs to the Liberals. Therefore, the evidence suggests that if everyone in Canada who could vote did so, the Liberals would win the 2019 election.
+
+## Discussion:
+
+If everyone in Canada who could vote did so in the 2019 election, the Liberal party would win. In addition, Conservative voter behaviour is driven by factors other than age, education, and satisfaction with government processes. However; based on the fact that the trend line increases along the $x$ axis, it would appear that the factors that do drive Conservative voter behaviour appear to be connected to these variables.
+
+This work shows an interesting aspect of the importance of voter turnout: we can see how the entire population of Canadian voters behave and the impact of their behaviour, rather than just the most opinionated subsection. People who don’t vote are less opinionated than people would do, and those opinionated people are who decide who governs the country. Thus, full voter turnout more or less guarantees that the voices of all Canadians are heard. Looking at who would win an election under full turnout conditions is a good way to gauge which party appeals to the most Canadians. Under full turnout conditions, the results show that people who don't normally vote would vote liberal.
+
+Two possible reasons why those who don’t vote would vote for the Liberal party exist. The first is the perception of the liberal party as a “happy medium”. Fairness is a core Canadian value. Some have described it as akin to a religion. Thus, the “happy medium” has a cultural appeal to many Canadians. Canadian feel the Liberal party as a happy medium because it espouses values such as environmental stewardship and remediation of the wealth gap, year at the same time, it is “hands off” in comparison to the NDP and Green party. The Liberal party also takes a stance that aligns with the mantra of “Peace, order, and good government”. People who don't vote are less opinionated than those who do. Since Liberals are the least opinionated party, that’s where people vote. 
+
+The second reason is an aversion to the alternative. Other parties, such as the Conservatives, NDP, and Greens espouse values some may find unpalatable. While environmental policy makes up a significant portion of the Green’s platform, they mainly appeal to a limited population of people who have opinions on disease and corporations that are outside the mainstream. The NDP takes an aggressive stance on taxing large corporations and wealthy individuals in accordance with its original intention to remove the capitalist system and replace it with a command economy. The Conservatives are right of centre, and as such, espouse values that may be perceived as going against the mantra of “Peace, order, and good government”, such as increased military spending. 
+
+In addition to the above, the BQ can be viewed as a “special interest party”. Their platform rests on one major tenet: the separation of Quebec Canada. This makes them Popular within Quebec, but niche in the rest of Canada. That having been said, one possible group of Canadians living outside Quebec to whom the BQ may appeal exists: individuals who think “Please, Quebec, cut your whining and separate already!”
+
+As with any scientific exploration, sources of error exist, and errors must be mitigated. Hanretty’s paper outlines Some common reasons that MRP analysis may not reflect reality. These include Unpredictable beliefs, connection of demographics with outcome (summed up by Hanretty as “Demography is destiny”) or prior benchmarks either not existing or failing to apply to the situation at hand. Concerns surrounding unpredictable beliefs are largely not applicable to any extent in this work. Rather than making a prediction about the future, the goal of this work was to reconstruct a what-if type scenario on an event that already happened. As for instances of “Demography is destiny”, outside of Quebec, the BQ has little influence. Thus, In the context of Canada as a whole, the BQ can be seen as a special interest party (it has a strong hold in Quebec, but little relevance elsewhere). As a result, all the political parties in Canada pander to Quebec so that they don’t lose their relevance there. We mitigated this to a reasonable extent by stratifying by province. And doing this analysis, we also encountered a situation where we had to substitute one measurement tape for another because the measurement type of interest did not exist in the second dataset. The GSS does not contain data on a person’s satisfaction with government processes, so we had to substitute half of how a person ranked outlook on life on a scale of 1 to 10. Mathematically, this worked, but it may not necessarily be reliable as a person's outlook on life goes far beyond their satisfaction with government processes.
+
+Further research could focus on what drives Conservative voting behavior. In this analysis, we’ve shown that the log of odds of a conservative win are constant. That said, the line of best fit slopes up with the predictor variable’s age, education, and satisfaction with government processes. This suggests that an unknown predictor variable connected to the above variables exists (for example, such an unknown predictor could be a function of age). Further investigation should focus on the association between the unknown predictor and the known predictors used in our model.
+
+## Appendix:
+```{r echo=FALSE, warning=FALSE}
+dem_st_bar <- ggplot(ces2019_web, aes(x=cps19_demsat)) + geom_bar() + labs(title="Satisfaction with Democracy", subtitle="Data from CES (2019)", x="satisfaction with democracy")
+dem_st_bar + coord_flip()
+
+fed_st_bar <- ggplot(ces2019_web, aes(x=cps19_fed_gov_sat)) + geom_bar() + labs(title="Satisfaction with Federal Government", subtitle="Data from CES (2019)", x="satisfaction with federal government")
+fed_st_bar + coord_flip()
+
+outlook_bar <- ggplot(data, aes(x=feelings_life))+geom_bar()+labs(title="Outlook on Life", subtitle="Data from GSS (2017)", x="outlook on life")
+outlook_bar+coord_flip()
+```
+
+
+## Reference List:
+
+Alexander, Rohan (2020) General Social Survey Data Cleaning Code [Source code]. http://q.utoronto.ca 
+
+Alice, Michy. "How to Perform a Logistic Regression in R." R-bloggers. Last modified July 5, 2020. https://www.r-bloggers.com/2015/09/how-to-perform-a-logistic-regression-in-r/.
+
+Elections Canada. "Facts About Voter Registration, Citizenship and Voter ID – Elections Canada." Élections Canada En Ligne - Elections Canada On-line. Last modified May 12, 2020. https://www.elections.ca/content.aspx?section=med&dir=c76/citizen&document=index&lang=e.
+
+"FAQ: How Do I Interpret Odds Ratios in Logistic Regression?" IDRE Stats – Statistical Consulting Web Resources. Last modified 2020. https://stats.idre.ucla.edu/other/mult-pkg/faq/general/faq-how-do-i-interpret-odds-ratios-in-logistic-regression/.
+
+Fulford, Robert. "Robert Fulford: Welcome to Canada, a country obsessed with always being ‘fair’." National Post, June 30, 2017. https://nationalpost.com/opinion/robert-fulford-fairness-is-the-closest-thing-canadians-have-to-a-defining-value.
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New
+  York, 2016.
+
+Hanretty, Chris. "An Introduction to Multilevel Regression and Post-Stratification for Estimating Constituency Opinion." _Political Studies Review_ 18, no. 4 (2019), 630-645. doi:10.1177/1478929919864773.
+
+Joseph Larmarange (2020). labelled: Manipulating Labelled Data. R package version 2.7.0.
+  http://larmarange.github.io/labelled/
+
+Kennedy, Lauren, and Andrew Gelman. "Know your population and know your model: Using model-based regression and post-stratification to generalize findings beyond the observed sample." 2019. doi:1906.11323v2.
+
+Paul A. Hodgetts and Rohan Alexander (2020). cesR: Access the CES Datasets a
+  Little Easier.. R package version 0.1.0.
+  
+"Political Parties." The Canada Guide. Last modified November 17, 2016. https://thecanadaguide.com/government/political-parties/.
+
+R Core Team (2020). R: A language and environment for statistical computing. R
+  Foundation for Statistical Computing, Vienna, Austria. URL
+  https://www.R-project.org/.
+  
+Ruus, Laine. 2017 General Social Survey (GSS): Families Cycle 31. December 16, 2003. Distributed by CHASS Data Archive. http://dc.chass.utoronto.ca/
+
+Stephenson, Laura B; Harell, Allison; Rubenson, Daniel; Loewen, Peter John, 2020, '2019 Canadian Election Study - Online Survey', https://doi.org/10.7910/DVN/DUS88V, Harvard Dataverse, V1
+
+Stephenson, Laura, Allison Harrel, Daniel Rubenson and Peter Loewen. Forthcoming.   'Measuring Preferences and Behaviour in the 2019 Canadian Election Study,' Canadian Journal of Political Science.
+
+Stephenson, Laura, Allison Harell, Daniel Rubenson, and Peter Loewen. "Design – Canadian Election Study." Canadian Election Study. Accessed December 18, 2020. https://www.ces-eec.ca/design/.
+
+Wang, Wei, David Rothschild, Sharad Goel, and Andrew Gelman. "Forecasting elections with non-representative polls." _International Journal of Forecasting_ 31, no. 3 (2015), 980-991. doi:10.1016/j.ijforecast.2014.06.001.
+
+Wherry, Aaron. "Where You Live is Who You Are: Erin O'Toole and the New Culture War | CBC News." CBC. Last modified December 1, 2020. https://www.cbc.ca/news/politics/erin-otoole-culture-war-pandemic-statues-immigration-1.5826976.
+  
+Wickham et al., (2019). Welcome to the tidyverse. Journal of Open
+  Source Software, 4(43), 1686, https://doi.org/10.21105/joss.01686
+
+```{r}
+
+```
