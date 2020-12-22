@@ -10,6 +10,8 @@ This folder contains:
 
 4. some loose code I put together (testing space)
 
+5. a file folder containing data cleaning code to handle the GSS data
+
 # Data retrieval:
 
 CES data: simply install the cesR library using the following command: devtools::install_github("hodgettsp/cesR")
